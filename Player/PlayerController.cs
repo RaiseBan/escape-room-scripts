@@ -10,6 +10,11 @@ public class PlayerController : MonoBehaviour
     public float groundCheckDistance = 1.2f;
     public LayerMask groundMask = ~0;
 
+    [Header("Crouching")]
+    public float crouchSpeed = 4f;           // Скорость при приседании
+    public float crouchHeight = 0.5f;        // Высота при приседании
+    public float crouchTransitionSpeed = 8f; // Скорость перехода в присед
+
     [Header("Camera")]
     public Transform cameraHolder;
     public float mouseSensitivity = 100f;
@@ -19,32 +24,88 @@ public class PlayerController : MonoBehaviour
     private float _nextJumpTime;
     private bool _isGrounded;
 
+    // Crouching variables
+    private bool _isCrouching = false;
+    private Vector3 _originalCameraPosition;
+    private Vector3 _crouchCameraPosition;
+
+    // Mouse look control
+    public static bool canLookAround = true;  // Статический флаг для блокировки поворота
+
     void Start()
     {
         _rb = GetComponent<Rigidbody>();
         Cursor.lockState = CursorLockMode.Locked;
+
+        // Запоминаем изначальную позицию камеры
+        if (cameraHolder != null)
+        {
+            _originalCameraPosition = cameraHolder.localPosition;
+            _crouchCameraPosition = _originalCameraPosition + Vector3.down * crouchHeight;
+        }
     }
 
     void Update()
     {
         CheckGrounded();
+        HandleCrouching();
+        HandleJumping();
+        HandleMouseLook();
+    }
 
+    void HandleCrouching()
+    {
+        // Проверяем нажатие Ctrl или C для приседания
+        bool crouchInput = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.C);
+
+        if (crouchInput && !_isCrouching)
+        {
+            StartCrouch();
+        }
+        else if (!crouchInput && _isCrouching)
+        {
+            StopCrouch();
+        }
+
+        // Плавно перемещаем камеру
+        if (cameraHolder != null)
+        {
+            Vector3 targetPosition = _isCrouching ? _crouchCameraPosition : _originalCameraPosition;
+            cameraHolder.localPosition = Vector3.Lerp(
+                cameraHolder.localPosition,
+                targetPosition,
+                crouchTransitionSpeed * Time.deltaTime
+            );
+        }
+    }
+
+    void StartCrouch()
+    {
+        _isCrouching = true;
+    }
+
+    void StopCrouch()
+    {
+        _isCrouching = false;
+    }
+
+    void HandleJumping()
+    {
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            if (_isGrounded && Time.time >= _nextJumpTime)
+            // Нельзя прыгать при приседании
+            if (_isGrounded && Time.time >= _nextJumpTime && !_isCrouching)
             {
                 _rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
                 _nextJumpTime = Time.time + jumpCooldown;
-                Debug.Log("Jump!");
-            }
-            else
-            {
-                if (!_isGrounded)
-                    Debug.Log("Not grounded");
-                else
-                    Debug.Log("Jump on cooldown");
             }
         }
+    }
+
+    void HandleMouseLook()
+    {
+        // Не поворачиваем камеру если движение мыши заблокировано
+        if (!canLookAround) return;
 
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
         float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
@@ -76,6 +137,20 @@ public class PlayerController : MonoBehaviour
         Vector3 move = cameraHolder.forward * Input.GetAxis("Vertical") +
                      cameraHolder.right * Input.GetAxis("Horizontal");
 
-        _rb.linearVelocity = new Vector3(move.x * moveSpeed, _rb.linearVelocity.y, move.z * moveSpeed);
+        // Используем разную скорость в зависимости от того, приседает ли игрок
+        float currentSpeed = _isCrouching ? crouchSpeed : moveSpeed;
+
+        _rb.linearVelocity = new Vector3(move.x * currentSpeed, _rb.linearVelocity.y, move.z * currentSpeed);
+    }
+
+    // Методы для блокировки/разблокировки поворота камеры
+    public static void DisableMouseLook()
+    {
+        canLookAround = false;
+    }
+
+    public static void EnableMouseLook()
+    {
+        canLookAround = true;
     }
 }

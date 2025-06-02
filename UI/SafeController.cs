@@ -21,17 +21,19 @@ public class SafeController : MonoBehaviour, IInteractable
         if (safeInputUI == null)
             safeInputUI = FindObjectOfType<SafeInputUI>();
 
-        // Скрыть ключ изначально
+        // Скрыть ключ изначально (полностью деактивировать объект)
         if (keyObject != null)
             keyObject.SetActive(false);
     }
 
     public string GetPromptText()
     {
-        if (isOpen)
-            return "Safe is already open";
-        else
-            return "Press E to enter code";
+        return "Press E to enter code";
+    }
+
+    public bool CanInteract()
+    {
+        return !isOpen;  // Можно взаимодействовать только если сейф закрыт
     }
 
     public void Interact()
@@ -62,6 +64,7 @@ public class SafeController : MonoBehaviour, IInteractable
     void OpenSafe()
     {
         isOpen = true;
+        GameManager.Instance.OpenSafe();
 
         // Простая анимация открытия двери
         if (safeDoor != null)
