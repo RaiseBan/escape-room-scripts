@@ -18,34 +18,36 @@ public class TelevisionController : MonoBehaviour, IInteractable
     public float flickerSpeed = 0.1f;
     public float codeAppearDelay = 1f;
     
-    [Header("Screen Lighting")]
-    public Light[] screenLights;             // Массив источников света
-    public Color screenLightColor = Color.cyan;
-    public float lightIntensity = 1f;
+    [Header("Emission Control")]
+    public Color emissionColor = new Color(0.2f, 0.4f, 1f);
+    public float maxEmissionIntensity = 3f;   
+    public float minEmissionIntensity = 0.1f; 
+
+    [Header("Sound Effects")]
+    public AudioClip turnOnSound;        // Звук включения
+    public AudioClip staticNoiseLoop;    // Шипение (looped)
+    public AudioSource audioSource;      // AudioSource компонент
 
     private bool isOn = false;
     private bool isAnimating = false;
+    private Material screenMaterialInstance;
 
     void Start()
     {
-        UpdateTVDisplay();
-        
-        // Настраиваем все источники света
-        SetupScreenLights();
-    }
-
-    void SetupScreenLights()
-    {
-        foreach (Light light in screenLights)
+        // Создаем AudioSource если нет
+        if (audioSource == null)
         {
-            if (light != null)
-            {
-                light.color = screenLightColor;
-                light.intensity = 0;
-                light.enabled = false;
-                light.range = 3f; // Меньший радиус для каждого источника
-            }
+            audioSource = gameObject.AddComponent<AudioSource>();
         }
+        
+        // Создаем копию материала
+        if (tvScreenRenderer != null && tvOnMaterial != null)
+        {
+            screenMaterialInstance = new Material(tvOnMaterial);
+            SetEmissionIntensity(0f);
+        }
+        
+        UpdateTVDisplay();
     }
 
     public void Interact()
@@ -86,49 +88,40 @@ public class TelevisionController : MonoBehaviour, IInteractable
     {
         isAnimating = true;
         
+        // Играем звук включения
+        if (turnOnSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(turnOnSound);
+        }
+        
         if (screenCanvas != null)
             screenCanvas.SetActive(false);
 
+        if (tvScreenRenderer != null && screenMaterialInstance != null)
+            tvScreenRenderer.material = screenMaterialInstance;
+
         // Эффект мерцания
         float elapsedTime = 0;
-        bool isFlickering = true;
         
         while (elapsedTime < flickerDuration)
         {
-            // Переключаем материал
-            if (tvScreenRenderer != null)
-            {
-                tvScreenRenderer.material = isFlickering ? tvOnMaterial : tvOffMaterial;
-            }
+            float randomIntensity = Random.Range(minEmissionIntensity, maxEmissionIntensity);
+            SetEmissionIntensity(randomIntensity);
             
-            // Мерцаем всеми источниками света
-            foreach (Light light in screenLights)
-            {
-                if (light != null)
-                {
-                    light.enabled = isFlickering;
-                    light.intensity = isFlickering ? Random.Range(0.3f, lightIntensity) : 0;
-                }
-            }
-            
-            isFlickering = !isFlickering;
             elapsedTime += flickerSpeed;
-            
             yield return new WaitForSeconds(flickerSpeed);
         }
 
         // Окончательно включаем
-        if (tvScreenRenderer != null)
-            tvScreenRenderer.material = tvOnMaterial;
-            
-        // Включаем все источники света
-        foreach (Light light in screenLights)
+        SetEmissionIntensity(maxEmissionIntensity);
+
+        // Запускаем шипение после мерцания
+        if (staticNoiseLoop != null && audioSource != null)
         {
-            if (light != null)
-            {
-                light.enabled = true;
-                light.intensity = lightIntensity;
-            }
+            audioSource.clip = staticNoiseLoop;
+            audioSource.loop = true;
+            audioSource.volume = 0.3f; // Тихо, чтобы не мешало
+            audioSource.Play();
         }
 
         yield return new WaitForSeconds(codeAppearDelay);
@@ -172,17 +165,15 @@ public class TelevisionController : MonoBehaviour, IInteractable
     void TurnOffInstantly()
     {
         GameManager.Instance.TurnOffTV();
-        UpdateTVDisplay();
         
-        // Выключаем все источники света
-        foreach (Light light in screenLights)
+        // Останавливаем все звуки
+        if (audioSource != null)
         {
-            if (light != null)
-            {
-                light.enabled = false;
-                light.intensity = 0;
-            }
+            audioSource.Stop();
         }
+        
+        SetEmissionIntensity(0f);
+        UpdateTVDisplay();
     }
 
     void UpdateTVDisplay()
@@ -199,10 +190,32 @@ public class TelevisionController : MonoBehaviour, IInteractable
 
         if (tvScreenRenderer != null)
         {
-            if (isOn && tvOnMaterial != null)
-                tvScreenRenderer.material = tvOnMaterial;
+            if (isOn && screenMaterialInstance != null)
+                tvScreenRenderer.material = screenMaterialInstance;
             else if (!isOn && tvOffMaterial != null)
                 tvScreenRenderer.material = tvOffMaterial;
+        }
+    }
+
+    void SetEmissionIntensity(float intensity)
+    {
+        if (screenMaterialInstance != null)
+        {
+            Color finalEmissionColor = emissionColor * intensity;
+            screenMaterialInstance.SetColor("_EmissionColor", finalEmissionColor);
+            
+            if (intensity > 0)
+                screenMaterialInstance.EnableKeyword("_EMISSION");
+            else
+                screenMaterialInstance.DisableKeyword("_EMISSION");
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (screenMaterialInstance != null)
+        {
+            DestroyImmediate(screenMaterialInstance);
         }
     }
 }

@@ -6,22 +6,32 @@ public class SafeController : MonoBehaviour, IInteractable
     public bool isOpen = false;
 
     [Header("Safe Door Animation")]
-    public GameObject safeDoor;              // Дверь сейфа
-    public Vector3 openRotation = new Vector3(0, -90, 0);  // Поворот при открытии
+    public GameObject safeDoor;              
+    public Vector3 openRotation = new Vector3(0, -90, 0);  
 
     [Header("Contents")]
-    public GameObject keyObject;             // Ключ внутри сейфа
+    public GameObject keyObject;             
 
     [Header("UI")]
-    public SafeInputUI safeInputUI;          // UI панель ввода кода
+    public SafeInputUI safeInputUI;          
+
+    [Header("Sound Effects")]
+    public AudioClip buttonClickSound;      // Звук нажатия кнопки
+    public AudioClip successSound;          // Звук успешного открытия
+    public AudioClip errorSound;            // Звук ошибки
+    public AudioSource audioSource;         // AudioSource компонент
 
     void Start()
     {
-        // Найти UI компонент если не назначен
+        // Создаем AudioSource если нет
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+        }
+
         if (safeInputUI == null)
             safeInputUI = FindObjectOfType<SafeInputUI>();
 
-        // Скрыть ключ изначально (полностью деактивировать объект)
         if (keyObject != null)
             keyObject.SetActive(false);
     }
@@ -33,7 +43,7 @@ public class SafeController : MonoBehaviour, IInteractable
 
     public bool CanInteract()
     {
-        return !isOpen;  // Можно взаимодействовать только если сейф закрыт
+        return !isOpen;
     }
 
     public void Interact()
@@ -44,7 +54,24 @@ public class SafeController : MonoBehaviour, IInteractable
         }
     }
 
-    // Вызывается из SafeInputUI когда пользователь вводит код
+    // Метод для воспроизведения звука кнопки (вызывается из SafeInputUI)
+    public void PlayButtonSound()
+    {
+        if (buttonClickSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(buttonClickSound);
+        }
+    }
+
+    // Метод для воспроизведения звука ошибки
+    public void PlayErrorSound()
+    {
+        if (errorSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(errorSound);
+        }
+    }
+
     public bool TryCode(string inputCode)
     {
         string correctCode = GameManager.Instance.safeCode;
@@ -56,6 +83,7 @@ public class SafeController : MonoBehaviour, IInteractable
         }
         else
         {
+            PlayErrorSound(); // Играем звук ошибки
             Debug.Log("Wrong code! Try again.");
             return false;
         }
@@ -66,18 +94,51 @@ public class SafeController : MonoBehaviour, IInteractable
         isOpen = true;
         GameManager.Instance.OpenSafe();
 
-        // Простая анимация открытия двери
-        if (safeDoor != null)
+        // Играем звук успешного открытия
+        if (successSound != null && audioSource != null)
         {
-            safeDoor.transform.localRotation = Quaternion.Euler(openRotation);
+            audioSource.PlayOneShot(successSound);
         }
 
-        // Показать ключ
+        // Плавная анимация открытия двери
+        if (safeDoor != null)
+        {
+            StartCoroutine(AnimateSafeDoor());
+        }
+
+        Debug.Log("Safe opened! Key is now visible.");
+    }
+
+    System.Collections.IEnumerator AnimateSafeDoor()
+    {
+        if (safeDoor == null) yield break;
+
+        Quaternion startRotation = safeDoor.transform.localRotation;
+        Quaternion targetRotation = Quaternion.Euler(openRotation);
+        
+        float duration = 1.2f; // Длительность анимации
+        float elapsedTime = 0;
+
+        // Плавное открытие с easing
+        while (elapsedTime < duration)
+        {
+            elapsedTime += Time.deltaTime;
+            
+            // Используем smooth curve для естественного движения
+            float t = elapsedTime / duration;
+            float smoothT = Mathf.SmoothStep(0, 1, t);
+            
+            safeDoor.transform.localRotation = Quaternion.Slerp(startRotation, targetRotation, smoothT);
+            
+            yield return null;
+        }
+
+        safeDoor.transform.localRotation = targetRotation;
+
+        // Показываем ключ после окончания анимации
         if (keyObject != null)
         {
             keyObject.SetActive(true);
         }
-
-        Debug.Log("Safe opened! Key is now visible.");
     }
 }

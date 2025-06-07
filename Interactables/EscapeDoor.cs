@@ -7,12 +7,25 @@ public class EscapeDoor : MonoBehaviour, IInteractable
     public bool isOpen = false;
     
     [Header("Door Animation")]
-    public GameObject doorObject;            // Сама дверь
-    public Vector3 openRotation = new Vector3(0, 90, 0);  // Поворот при открытии
-    public float openSpeed = 1.5f;           // Скорость открытия (медленнее = плавнее)
+    public GameObject doorObject;            
+    public Vector3 openRotation = new Vector3(0, 90, 0);  
+    public float openSpeed = 1.5f;           
     
     [Header("Win Screen")]
-    public GameObject winScreen;             // Экран победы (необязательно)
+    public GameObject winScreen;             
+
+    [Header("Sound Effects")]
+    public AudioClip creakSound;             // Звук скрипа двери
+    public AudioSource audioSource;          // AudioSource компонент
+    
+    void Start()
+    {
+        // Создаем AudioSource если нет
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+        }
+    }
     
     public string GetPromptText()
     {
@@ -26,7 +39,7 @@ public class EscapeDoor : MonoBehaviour, IInteractable
     
     public bool CanInteract()
     {
-        return !isOpen;  // Можно взаимодействовать только с закрытой дверью
+        return !isOpen;
     }
     
     public void Interact()
@@ -45,7 +58,12 @@ public class EscapeDoor : MonoBehaviour, IInteractable
     {
         isOpen = true;
         
-        // Простая анимация открытия
+        // Играем звук скрипа в начале открытия
+        if (creakSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(creakSound);
+        }
+        
         if (doorObject != null)
         {
             StartCoroutine(RotateDoor());
@@ -53,7 +71,6 @@ public class EscapeDoor : MonoBehaviour, IInteractable
         
         Debug.Log("Поздравляем! Вы сбежали из комнаты!");
         
-        // Показываем экран победы через 2 секунды (после анимации)
         Invoke(nameof(ShowWinScreen), 2f);
     }
     

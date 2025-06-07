@@ -5,32 +5,29 @@ using TMPro;
 public class SafeInputUI : MonoBehaviour
 {
     [Header("UI Panel")]
-    public GameObject codePanel;             // Панель ввода кода
-    public TMP_Text displayText;             // Поле отображения введенного кода
-    public TMP_Text feedbackText;            // Текст обратной связи (ошибки/успех)
+    public GameObject codePanel;             
+    public TMP_Text displayText;             
+    public TMP_Text feedbackText;            
     
     [Header("Buttons")]
-    public Button[] numberButtons;           // Кнопки цифр 0-9
-    public Button clearButton;               // Кнопка очистки
-    public Button enterButton;               // Кнопка подтверждения
-    public Button closeButton;               // Кнопка закрытия панели
+    public Button[] numberButtons;           
+    public Button clearButton;               
+    public Button enterButton;               
+    public Button closeButton;               
     
-    private string currentInput = "";        // Текущий введенный код
-    private const int CODE_LENGTH = 6;       // Длина кода
-    private SafeController connectedSafe;    // Ссылка на сейф
+    private string currentInput = "";        
+    private const int CODE_LENGTH = 6;       
+    private SafeController connectedSafe;    
     
     void Start()
     {
         SetupButtons();
         CloseCodePanel();
-        
-        // Убеждаемся что поворот камеры включен при старте
         PlayerController.EnableMouseLook();
     }
     
     void Update()
     {
-        // Закрытие панели по нажатию Escape
         if (codePanel != null && codePanel.activeInHierarchy && Input.GetKeyDown(KeyCode.Escape))
         {
             CloseCodePanel();
@@ -43,18 +40,41 @@ public class SafeInputUI : MonoBehaviour
         for (int i = 0; i < numberButtons.Length && i < 10; i++)
         {
             int digit = i; // Важно для замыкания
-            numberButtons[i].onClick.AddListener(() => AddDigit(digit.ToString()));
+            numberButtons[i].onClick.AddListener(() => {
+                AddDigit(digit.ToString());
+                // Играем звук кнопки через SafeController
+                if (connectedSafe != null)
+                    connectedSafe.PlayButtonSound();
+            });
         }
         
         // Настраиваем служебные кнопки
         if (clearButton != null)
-            clearButton.onClick.AddListener(ClearInput);
+        {
+            clearButton.onClick.AddListener(() => {
+                ClearInput();
+                if (connectedSafe != null)
+                    connectedSafe.PlayButtonSound();
+            });
+        }
             
         if (enterButton != null)
-            enterButton.onClick.AddListener(SubmitCode);
+        {
+            enterButton.onClick.AddListener(() => {
+                SubmitCode();
+                if (connectedSafe != null)
+                    connectedSafe.PlayButtonSound();
+            });
+        }
             
         if (closeButton != null)
-            closeButton.onClick.AddListener(CloseCodePanel);
+        {
+            closeButton.onClick.AddListener(() => {
+                CloseCodePanel();
+                if (connectedSafe != null)
+                    connectedSafe.PlayButtonSound();
+            });
+        }
     }
     
     public void OpenCodePanel(SafeController safe)
@@ -62,14 +82,10 @@ public class SafeInputUI : MonoBehaviour
         connectedSafe = safe;
         codePanel.SetActive(true);
         
-        // Разблокируем курсор для UI
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
-        
-        // БЛОКИРУЕМ поворот камеры
         PlayerController.DisableMouseLook();
         
-        // Очищаем ввод
         ClearInput();
         
         if (feedbackText != null)
@@ -81,11 +97,8 @@ public class SafeInputUI : MonoBehaviour
         if (codePanel != null)
             codePanel.SetActive(false);
             
-        // Блокируем курсор обратно
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-        
-        // ВКЛЮЧАЕМ поворот камеры обратно
         PlayerController.EnableMouseLook();
         
         connectedSafe = null;
@@ -120,7 +133,6 @@ public class SafeInputUI : MonoBehaviour
                 if (feedbackText != null)
                     feedbackText.text = "CORRECT! Safe opened!";
                     
-                // Закрываем панель через секунду
                 Invoke(nameof(CloseCodePanel), 1f);
             }
             else
@@ -142,7 +154,6 @@ public class SafeInputUI : MonoBehaviour
     {
         if (displayText != null)
         {
-            // Показываем введенные цифры и подчеркивания для оставшихся
             string display = currentInput.PadRight(CODE_LENGTH, '_');
             displayText.text = display;
         }
