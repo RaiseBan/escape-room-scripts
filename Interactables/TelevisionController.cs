@@ -28,6 +28,12 @@ public class TelevisionController : MonoBehaviour, IInteractable
     public AudioClip staticNoiseLoop;    // Шипение (looped)
     public AudioSource audioSource;      // AudioSource компонент
 
+    [Header("Volume Settings")]
+    public float turnOnVolume = 0.7f;        // Громкость звука включения
+    public float staticNoiseVolume = 0.15f;  // Громкость шипения (тише)
+    public float maxVolume = 1.0f;            // Максимальная громкость
+
+
     private bool isOn = false;
     private bool isAnimating = false;
     private Material screenMaterialInstance;
@@ -91,6 +97,7 @@ public class TelevisionController : MonoBehaviour, IInteractable
         // Играем звук включения
         if (turnOnSound != null && audioSource != null)
         {
+            audioSource.volume = turnOnVolume;  // Используем настраиваемую громкость
             audioSource.PlayOneShot(turnOnSound);
         }
         
@@ -120,7 +127,7 @@ public class TelevisionController : MonoBehaviour, IInteractable
         {
             audioSource.clip = staticNoiseLoop;
             audioSource.loop = true;
-            audioSource.volume = 0.3f; // Тихо, чтобы не мешало
+            audioSource.volume = staticNoiseVolume;  // Используем отдельную настройку для шипения
             audioSource.Play();
         }
 

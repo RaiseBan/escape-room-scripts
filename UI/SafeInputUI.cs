@@ -7,7 +7,6 @@ public class SafeInputUI : MonoBehaviour
     [Header("UI Panel")]
     public GameObject codePanel;             
     public TMP_Text displayText;             
-    public TMP_Text feedbackText;            
     
     [Header("Buttons")]
     public Button[] numberButtons;           
@@ -42,7 +41,6 @@ public class SafeInputUI : MonoBehaviour
             int digit = i; // Важно для замыкания
             numberButtons[i].onClick.AddListener(() => {
                 AddDigit(digit.ToString());
-                // Играем звук кнопки через SafeController
                 if (connectedSafe != null)
                     connectedSafe.PlayButtonSound();
             });
@@ -87,9 +85,6 @@ public class SafeInputUI : MonoBehaviour
         PlayerController.DisableMouseLook();
         
         ClearInput();
-        
-        if (feedbackText != null)
-            feedbackText.text = "Enter 6-digit code";
     }
     
     public void CloseCodePanel()
@@ -117,9 +112,6 @@ public class SafeInputUI : MonoBehaviour
     {
         currentInput = "";
         UpdateDisplay();
-        
-        if (feedbackText != null)
-            feedbackText.text = "Enter 6-digit code";
     }
     
     void SubmitCode()
@@ -130,23 +122,12 @@ public class SafeInputUI : MonoBehaviour
             
             if (isCorrect)
             {
-                if (feedbackText != null)
-                    feedbackText.text = "CORRECT! Safe opened!";
-                    
                 Invoke(nameof(CloseCodePanel), 1f);
             }
             else
             {
-                if (feedbackText != null)
-                    feedbackText.text = "WRONG CODE! Try again.";
-                    
                 ClearInput();
             }
-        }
-        else
-        {
-            if (feedbackText != null)
-                feedbackText.text = "Enter complete 6-digit code!";
         }
     }
     
