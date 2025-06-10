@@ -24,34 +24,35 @@ public class TelevisionController : MonoBehaviour, IInteractable
     public float minEmissionIntensity = 0.1f; 
 
     [Header("Sound Effects")]
-    public AudioClip turnOnSound;        // Звук включения
-    public AudioClip staticNoiseLoop;    // Шипение (looped)
-    public AudioSource audioSource;      // AudioSource компонент
+    public AudioClip turnOnSound;        
+    public AudioClip staticNoiseLoop;    
+    public AudioSource audioSource;      
 
     [Header("Volume Settings")]
-    public float turnOnVolume = 0.7f;        // Громкость звука включения
-    public float staticNoiseVolume = 0.15f;  // Громкость шипения (тише)
-    public float maxVolume = 1.0f;            // Максимальная громкость
-
+    public float turnOnVolume = 0.7f;        
+    public float staticNoiseVolume = 0.15f;  
+    public float maxVolume = 1.0f;            
 
     private bool isOn = false;
     private bool isAnimating = false;
     private Material screenMaterialInstance;
+    private ClockPuzzleManager clockPuzzleManager;
 
     void Start()
     {
-        // Создаем AudioSource если нет
         if (audioSource == null)
         {
             audioSource = gameObject.AddComponent<AudioSource>();
         }
         
-        // Создаем копию материала
         if (tvScreenRenderer != null && tvOnMaterial != null)
         {
             screenMaterialInstance = new Material(tvOnMaterial);
             SetEmissionIntensity(0f);
         }
+        
+        // Находим менеджер головоломки с часами
+        clockPuzzleManager = FindObjectOfType<ClockPuzzleManager>();
         
         UpdateTVDisplay();
     }
@@ -94,10 +95,9 @@ public class TelevisionController : MonoBehaviour, IInteractable
     {
         isAnimating = true;
         
-        // Играем звук включения
         if (turnOnSound != null && audioSource != null)
         {
-            audioSource.volume = turnOnVolume;  // Используем настраиваемую громкость
+            audioSource.volume = turnOnVolume;
             audioSource.PlayOneShot(turnOnSound);
         }
         
@@ -119,15 +119,13 @@ public class TelevisionController : MonoBehaviour, IInteractable
             yield return new WaitForSeconds(flickerSpeed);
         }
 
-        // Окончательно включаем
         SetEmissionIntensity(maxEmissionIntensity);
 
-        // Запускаем шипение после мерцания
         if (staticNoiseLoop != null && audioSource != null)
         {
             audioSource.clip = staticNoiseLoop;
             audioSource.loop = true;
-            audioSource.volume = staticNoiseVolume;  // Используем отдельную настройку для шипения
+            audioSource.volume = staticNoiseVolume;
             audioSource.Play();
         }
 
@@ -147,7 +145,9 @@ public class TelevisionController : MonoBehaviour, IInteractable
     {
         if (codeDisplayText != null)
         {
-            codeDisplayText.text = "SAFE CODE:\n" + GameManager.Instance.safeCode;
+            // Определяем что показывать: головоломку с часами или обычный код
+            string displayText = GetDisplayText();
+            codeDisplayText.text = displayText;
             
             Color originalColor = codeDisplayText.color;
             Color transparentColor = new Color(originalColor.r, originalColor.g, originalColor.b, 0);
@@ -169,11 +169,29 @@ public class TelevisionController : MonoBehaviour, IInteractable
         }
     }
 
+    /// <summary>
+    /// Определяет какой текст показывать на экране
+    /// </summary>
+    string GetDisplayText()
+    {
+        // Если есть менеджер головоломки с часами и она активна
+        if (clockPuzzleManager != null && clockPuzzleManager.IsPuzzleActive())
+        {
+            Debug.Log("Показываем головоломку с часами на ТВ");
+            return clockPuzzleManager.GetColorSequenceText();
+        }
+        else
+        {
+            // Обычный режим - показываем код напрямую
+            Debug.Log("Показываем обычный код на ТВ: " + GameManager.Instance.safeCode);
+            return "SAFE CODE:\n" + GameManager.Instance.safeCode;
+        }
+    }
+
     void TurnOffInstantly()
     {
         GameManager.Instance.TurnOffTV();
         
-        // Останавливаем все звуки
         if (audioSource != null)
         {
             audioSource.Stop();
@@ -192,7 +210,7 @@ public class TelevisionController : MonoBehaviour, IInteractable
 
         if (codeDisplayText != null && isOn)
         {
-            codeDisplayText.text = "SAFE CODE:\n" + GameManager.Instance.safeCode;
+            codeDisplayText.text = GetDisplayText();
         }
 
         if (tvScreenRenderer != null)
