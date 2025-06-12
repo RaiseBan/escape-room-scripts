@@ -5,7 +5,6 @@ public class ClockController : MonoBehaviour
     [Header("Clock Settings")]
     public ClockColor clockColor;           // Цвет часов (настраиваете вручную)
     public Transform hourHand;              // Ссылка на HourHand
-    public int currentHour = 1;             // Текущий час (1-9)
 
     [Header("Animation")]
     public float rotationSpeed = 2f;        // Скорость поворота стрелки
@@ -24,11 +23,13 @@ public class ClockController : MonoBehaviour
     }
 
     private bool isRotating = false;
+    private int displayedHour = 12;         // Какой час сейчас показывает стрелка
 
     void Start()
     {
-        // Устанавливаем изначальное положение стрелки
-        SetHourInstant(currentHour);
+        // Не меняем изначальное положение стрелки
+        // Считаем что она показывает 12 часов
+        displayedHour = 12;
     }
 
     /// <summary>
@@ -37,25 +38,25 @@ public class ClockController : MonoBehaviour
     public void SetHour(int hour)
     {
         // Ограничиваем от 1 до 9 (для цифр кода)
-        currentHour = Mathf.Clamp(hour, 1, 9);
+        hour = Mathf.Clamp(hour, 1, 9);
 
         if (!isRotating)
         {
-            StartCoroutine(RotateToHour());
+            StartCoroutine(RotateToHour(hour));
         }
         else
         {
-            UpdateHandPosition();
+            RotateToHourInstant(hour);
         }
     }
 
     /// <summary>
-    /// Мгновенно устанавливает положение стрелки без анимации
+    /// Мгновенно поворачивает стрелку к нужному часу
     /// </summary>
     public void SetHourInstant(int hour)
     {
-        currentHour = Mathf.Clamp(hour, 1, 9);
-        UpdateHandPosition();
+        hour = Mathf.Clamp(hour, 1, 9);
+        RotateToHourInstant(hour);
     }
 
     /// <summary>
@@ -63,7 +64,7 @@ public class ClockController : MonoBehaviour
     /// </summary>
     public int GetCurrentHour()
     {
-        return currentHour;
+        return displayedHour;
     }
 
     /// <summary>
@@ -75,36 +76,31 @@ public class ClockController : MonoBehaviour
     }
 
     /// <summary>
-    /// Обновляет положение стрелки без анимации
+    /// Мгновенно поворачивает стрелку к нужному часу
     /// </summary>
-    void UpdateHandPosition()
+    void RotateToHourInstant(int targetHour)
     {
         if (hourHand == null) return;
 
-        // Правильный расчет угла для часовой стрелки
-        // 12 часов = 0° (вверх), 1 час = 30°, 2 часа = 60°, и т.д.
-        // Но так как мы показываем часы 1-9, нужно корректно рассчитать
+        // Вычисляем разность в часах
+        int hourDifference = targetHour - displayedHour;
+        
+        // Конвертируем в градусы (каждый час = 30°)
+        float angleToAdd = hourDifference * 30f;
 
-        float angle;
-        if (currentHour == 12)
-        {
-            angle = 0f; // 12 часов - стрелка вверх
-        }
-        else
-        {
-            angle = currentHour * 30f; // 1 час = 30°, 2 часа = 60°, и т.д.
-        }
+        // Поворачиваем относительно текущего положения
+        hourHand.Rotate(0, 0, angleToAdd);
 
-        // В Unity поворот Z по часовой стрелке = отрицательный угол
-        hourHand.localRotation = Quaternion.Euler(0, 0, -angle);
+        // Обновляем отображаемый час
+        displayedHour = targetHour;
 
-        Debug.Log($"Часы {clockColor}: установлены на {currentHour} час, угол {-angle}°");
+        Debug.Log($"Часы {clockColor}: повернуты на {angleToAdd}°, теперь показывают {displayedHour} час");
     }
 
     /// <summary>
     /// Плавно поворачивает стрелку к нужному часу
     /// </summary>
-    System.Collections.IEnumerator RotateToHour()
+    System.Collections.IEnumerator RotateToHour(int targetHour)
     {
         if (hourHand == null) yield break;
 
@@ -112,17 +108,14 @@ public class ClockController : MonoBehaviour
 
         Quaternion startRotation = hourHand.localRotation;
 
-        float targetAngle;
-        if (currentHour == 12)
-        {
-            targetAngle = 0f;
-        }
-        else
-        {
-            targetAngle = currentHour * 30f;
-        }
+        // Вычисляем разность в часах
+        int hourDifference = targetHour - displayedHour;
+        
+        // Конвертируем в градусы (каждый час = 30°)
+        float angleToAdd = hourDifference * 30f;
 
-        Quaternion targetRotation = Quaternion.Euler(0, 0, -targetAngle);
+        // Целевой поворот относительно текущего
+        Quaternion targetRotation = startRotation * Quaternion.Euler(0, 0, angleToAdd);
 
         float elapsedTime = 0f;
         float duration = 1f / rotationSpeed;
@@ -140,9 +133,13 @@ public class ClockController : MonoBehaviour
         }
 
         hourHand.localRotation = targetRotation;
+        
+        // Обновляем отображаемый час
+        displayedHour = targetHour;
+        
         isRotating = false;
 
-        Debug.Log($"Часы {clockColor}: анимация завершена, указывают на {currentHour} час");
+        Debug.Log($"Часы {clockColor}: анимация завершена, повернуты на {angleToAdd}°, теперь показывают {displayedHour} час");
     }
 
     /// <summary>
@@ -188,4 +185,10 @@ public class ClockController : MonoBehaviour
 
     [ContextMenu("Test: Set to Hour 9")]
     void TestHour9() { SetHour(9); }
+
+    [ContextMenu("Debug: Current Hour")]
+    void DebugCurrentHour() 
+    { 
+        Debug.Log($"Часы {clockColor} сейчас показывают: {displayedHour} час"); 
+    }
 }
